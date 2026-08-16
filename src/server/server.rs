@@ -16,6 +16,7 @@ pub fn run(cfg: &AppConfig) -> Result<()> {
     let addr = cfg.addr().parse()?;
     let fft_size = cfg.audio.fft_size;
     let sample_rate = cfg.audio.sample_rate;
+    let frame_byte_size = cfg.frame.width * cfg.frame.height;
 
     let audio_send_buf = cfg.send_buf();
     thread::spawn(move || {
@@ -72,7 +73,7 @@ pub fn run(cfg: &AppConfig) -> Result<()> {
         let mut send_buf = frame_send_buf;
 
         loop {
-            let frame = generate_frame(fft_size, speech, &mut rng);
+            let frame = generate_frame(frame_byte_size, speech, &mut rng);
             if let Err(e) = client.send_to(&frame, addr, &mut send_buf) {
                 error!("[КАДР] Ошибка отправки: {}", e);
             }
