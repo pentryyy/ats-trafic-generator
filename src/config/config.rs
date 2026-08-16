@@ -8,6 +8,7 @@ use std::fs;
 pub struct AppConfig {
     pub log_level: String,
     pub audio: AudioConfig,
+    pub frame: FrameConfig,
     pub server: ServerConfig,
 }
 
@@ -15,6 +16,12 @@ pub struct AppConfig {
 pub struct AudioConfig {
     pub sample_rate: u32,
     pub fft_size: usize,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct FrameConfig {
+    pub width: usize,
+    pub height: usize,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

@@ -2,6 +2,7 @@ use crate::config::config::AppConfig;
 use crate::dto::request::audio::AudioData;
 use crate::services::socket::SocketService;
 
+use crate::dto::request::frame::FrameData;
 use anyhow::Result;
 use env_logger::Builder;
 use log::{error, info};
@@ -15,27 +16,26 @@ pub fn run(cfg: &AppConfig) -> Result<()> {
     let addr = cfg.addr().parse()?;
     let fft_size = cfg.audio.fft_size;
     let sample_rate = cfg.audio.sample_rate;
-    let send_buf = cfg.send_buf();
 
+    let audio_send_buf = cfg.send_buf();
     thread::spawn(move || {
         let client = SocketService::bind("127.0.0.1:0").unwrap();
         let packet_duration = fft_size as f32 / sample_rate as f32;
 
         let mut rng = rand::thread_rng();
         let mut speech: bool = rand::random();
-
         let mut remaining_time = if speech {
             rng.gen_range(1.0..=3.0)
         } else {
             rng.gen_range(0.5..=2.0)
         };
 
-        let mut send_buf = send_buf;
+        let mut send_buf = audio_send_buf;
 
         loop {
             let audio = create_audio(fft_size, sample_rate, speech);
             if let Err(e) = client.send_to(&audio, addr, &mut send_buf) {
-                error!("Ошибка отправки: {}", e);
+                error!("[АУДИО] Ошибка отправки: {}", e);
             }
 
             remaining_time -= packet_duration;
@@ -46,7 +46,49 @@ pub fn run(cfg: &AppConfig) -> Result<()> {
                 } else {
                     rng.gen_range(0.5..=2.0)
                 };
-                info!("Переключение на {}", if speech { "речь" } else { "тишину" });
+                info!(
+                    "[АУДИО] Переключение на {}",
+                    if speech { "речь" } else { "тишину" }
+                );
+            }
+
+            thread::sleep(Duration::from_millis(10));
+        }
+    });
+
+    let frame_send_buf = cfg.send_buf();
+    thread::spawn(move || {
+        let client = SocketService::bind("127.0.0.1:0").unwrap();
+        let packet_duration = fft_size as f32 / sample_rate as f32;
+
+        let mut rng = rand::thread_rng();
+        let mut speech: bool = rand::random();
+        let mut remaining_time = if speech {
+            rng.gen_range(1.0..=3.0)
+        } else {
+            rng.gen_range(0.5..=2.0)
+        };
+
+        let mut send_buf = frame_send_buf;
+
+        loop {
+            let frame = generate_frame(fft_size, speech, &mut rng);
+            if let Err(e) = client.send_to(&frame, addr, &mut send_buf) {
+                error!("[КАДР] Ошибка отправки: {}", e);
+            }
+
+            remaining_time -= packet_duration;
+            if remaining_time <= 0.0 {
+                speech = rand::random();
+                remaining_time = if speech {
+                    rng.gen_range(1.0..=3.0)
+                } else {
+                    rng.gen_range(0.5..=2.0)
+                };
+                info!(
+                    "[КАДР] Переключение на {}",
+                    if speech { "шум" } else { "чёрный" }
+                );
             }
 
             thread::sleep(Duration::from_millis(10));
@@ -96,4 +138,23 @@ fn create_audio(fft_size: usize, sample_rate: u32, speech: bool) -> AudioData {
         .collect();
 
     AudioData { mic1, mic2 }
+}
+
+fn generate_frame(size: usize, speech: bool, rng: &mut impl Rng) -> FrameData {
+    if !speech {
+        return FrameData {
+            frame: vec![0; size],
+        };
+    }
+
+    let mut frame = vec![0u8; size];
+    rng.fill(&mut frame[..]);
+
+    info!(
+        "[КАДР] Сгенерирован: размер={} байт, тип={}",
+        size,
+        if speech { "шум" } else { "чёрный" }
+    );
+
+    FrameData { frame }
 }

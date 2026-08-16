@@ -4,6 +4,10 @@ audio:
   sample_rate: 16000
   fft_size: 256
 
+frame:
+  width: 640
+  height: 480
+
 server:
   send_buf: 8192 # В байтах
   host: 127.0.0.1
