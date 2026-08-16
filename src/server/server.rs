@@ -13,7 +13,7 @@ pub fn run(cfg: &AppConfig) -> Result<()> {
     Builder::new().filter_level(cfg.log_level()).init();
 
     let addr = cfg.addr().parse()?;
-    let fft_size = cfg.vad.fft_size;
+    let fft_size = cfg.audio.fft_size;
     let sample_rate = cfg.audio.sample_rate;
     let send_buf = cfg.send_buf();
 

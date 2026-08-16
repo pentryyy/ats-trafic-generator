@@ -8,23 +8,12 @@ use std::fs;
 pub struct AppConfig {
     pub log_level: String,
     pub audio: AudioConfig,
-    pub vad: VadConfig,
     pub server: ServerConfig,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AudioConfig {
     pub sample_rate: u32,
-    pub mic_distance: f32,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct VadConfig {
-    pub low_freq: u32,
-    pub speech_freq_start: u32,
-    pub speech_freq_end: u32,
-    pub speech_energy_threshold: f32,
-    pub ratio_threshold: f32,
     pub fft_size: usize,
 }
 
