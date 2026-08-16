@@ -20,8 +20,8 @@ pub struct AudioConfig {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct FrameConfig {
-    pub width: usize,
-    pub height: usize,
+    pub width: u32,
+    pub height: u32,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

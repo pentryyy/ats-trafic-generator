@@ -5,10 +5,12 @@ use crate::services::socket::SocketService;
 use crate::dto::request::frame::FrameData;
 use anyhow::Result;
 use env_logger::Builder;
+use image::{ImageBuffer, RgbImage};
 use log::{error, info};
 use rand::Rng;
 use std::thread;
 use std::time::Duration;
+use image::codecs::jpeg::JpegEncoder;
 
 pub fn run(cfg: &AppConfig) -> Result<()> {
     Builder::new().filter_level(cfg.log_level()).init();
@@ -16,7 +18,6 @@ pub fn run(cfg: &AppConfig) -> Result<()> {
     let addr = cfg.addr().parse()?;
     let fft_size = cfg.audio.fft_size;
     let sample_rate = cfg.audio.sample_rate;
-    let frame_byte_size = cfg.frame.width * cfg.frame.height;
 
     let audio_send_buf = cfg.send_buf();
     thread::spawn(move || {
@@ -58,40 +59,19 @@ pub fn run(cfg: &AppConfig) -> Result<()> {
     });
 
     let frame_send_buf = cfg.send_buf();
+    let frame_width = cfg.frame.width;
+    let frame_height = cfg.frame.height;
     thread::spawn(move || {
         let client = SocketService::bind("127.0.0.1:0").unwrap();
-        let packet_duration = fft_size as f32 / sample_rate as f32;
-
         let mut rng = rand::thread_rng();
-        let mut speech: bool = rand::random();
-        let mut remaining_time = if speech {
-            rng.gen_range(1.0..=3.0)
-        } else {
-            rng.gen_range(0.5..=2.0)
-        };
-
+        rng.gen_range(1.0..=3.0);
         let mut send_buf = frame_send_buf;
 
         loop {
-            let frame = generate_frame(frame_byte_size, speech, &mut rng);
+            let frame = generate_frame(frame_width, frame_height, &mut rng);
             if let Err(e) = client.send_to(&frame, addr, &mut send_buf) {
                 error!("[КАДР] Ошибка отправки: {}", e);
             }
-
-            remaining_time -= packet_duration;
-            if remaining_time <= 0.0 {
-                speech = rand::random();
-                remaining_time = if speech {
-                    rng.gen_range(1.0..=3.0)
-                } else {
-                    rng.gen_range(0.5..=2.0)
-                };
-                info!(
-                    "[КАДР] Переключение на {}",
-                    if speech { "шум" } else { "чёрный" }
-                );
-            }
-
             thread::sleep(Duration::from_millis(10));
         }
     });
@@ -141,20 +121,22 @@ fn create_audio(fft_size: usize, sample_rate: u32, speech: bool) -> AudioData {
     AudioData { mic1, mic2 }
 }
 
-fn generate_frame(size: usize, speech: bool, rng: &mut impl Rng) -> FrameData {
-    if !speech {
-        return FrameData {
-            frame: vec![0; size],
-        };
+fn generate_frame(width: u32, height: u32, rng: &mut impl Rng) -> FrameData {
+    let mut img: RgbImage = ImageBuffer::new(width, height);
+    for pixel in img.pixels_mut() {
+        let r = rng.r#gen::<u8>();
+        let g = rng.r#gen::<u8>();
+        let b = rng.r#gen::<u8>();
+        *pixel = image::Rgb([r, g, b]);
     }
 
-    let mut frame = vec![0u8; size];
-    rng.fill(&mut frame[..]);
+    let mut frame = Vec::new();
+    let mut encoder = JpegEncoder::new_with_quality(&mut frame, 45);
+    encoder.encode(&img, width, height, image::ColorType::Rgb8).unwrap();
 
     info!(
-        "[КАДР] Сгенерирован: размер={} байт, тип={}",
-        size,
-        if speech { "шум" } else { "чёрный" }
+        "Генерация кадра: {} x {}",
+        width, height
     );
 
     FrameData { frame }

@@ -5,8 +5,8 @@ audio:
   fft_size: 256
 
 frame:
-  width: 200
-  height: 200
+  width: 320
+  height: 240
 
 server:
   send_buf: 65536 # В байтах
