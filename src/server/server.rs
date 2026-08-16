@@ -5,6 +5,7 @@ use crate::services::socket::SocketService;
 use anyhow::Result;
 use env_logger::Builder;
 use log::{error, info};
+use rand::Rng;
 use std::thread;
 use std::time::Duration;
 
@@ -20,12 +21,16 @@ pub fn run(cfg: &AppConfig) -> Result<()> {
         let client = SocketService::bind("127.0.0.1:0").unwrap();
         let packet_duration = fft_size as f32 / sample_rate as f32;
 
-        const SPEECH_DURATION: f32 = 2.0;
-        const SILENCE_DURATION: f32 = 1.0;
+        let mut rng = rand::thread_rng();
+        let mut speech: bool = rand::random();
+
+        let mut remaining_time = if speech {
+            rng.gen_range(1.0..=3.0)
+        } else {
+            rng.gen_range(0.5..=2.0)
+        };
 
         let mut send_buf = send_buf;
-        let mut speech = true;
-        let mut remaining_time = SPEECH_DURATION;
 
         loop {
             let audio = create_audio(fft_size, sample_rate, speech);
@@ -35,11 +40,12 @@ pub fn run(cfg: &AppConfig) -> Result<()> {
 
             remaining_time -= packet_duration;
             if remaining_time <= 0.0 {
-                speech = !speech;
+
+                speech = rand::random();
                 remaining_time = if speech {
-                    SPEECH_DURATION
+                    rng.gen_range(1.0..=3.0)
                 } else {
-                    SILENCE_DURATION
+                    rng.gen_range(0.5..=2.0)
                 };
                 info!("Переключение на {}", if speech { "речь" } else { "тишину" });
             }
