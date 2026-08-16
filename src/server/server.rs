@@ -40,7 +40,6 @@ pub fn run(cfg: &AppConfig) -> Result<()> {
 
             remaining_time -= packet_duration;
             if remaining_time <= 0.0 {
-
                 speech = rand::random();
                 remaining_time = if speech {
                     rng.gen_range(1.0..=3.0)
@@ -67,15 +66,24 @@ fn create_audio(fft_size: usize, sample_rate: u32, speech: bool) -> AudioData {
         };
     }
 
-    let freq_hz = 500.0;
-    let amplitude = 20000.0;
+    let mut rng = rand::thread_rng();
+
+    let freq_hz = rng.gen_range(100.0..=2000.0);
+    let amplitude = rng.gen_range(5000.0..=30000.0);
+    let delay_sec = rng.gen_range(0.0..=0.001);
+
+    info!(
+        "Генерация аудио: freq={:.1} Гц, амплитуда={:.1}, задержка={:.6} с",
+        freq_hz, amplitude, delay_sec
+    );
+
     let mic1: Vec<i16> = (0..fft_size)
         .map(|i| {
             let t = i as f32 / sample_rate as f32;
             (amplitude * (2.0 * std::f32::consts::PI * freq_hz * t).sin()) as i16
         })
         .collect();
-    let delay_sec = 0.0001;
+
     let mic2: Vec<i16> = (0..fft_size)
         .map(|i| {
             let t = i as f32 / sample_rate as f32 - delay_sec;
