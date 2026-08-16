@@ -1,11 +1,11 @@
 mod config;
 mod dto;
-mod server;
+mod generator;
 mod services;
 
 use crate::config::config::AppConfig;
 
-use crate::server::server::run;
+use crate::generator::generator::run;
 use anyhow::Result;
 
 fn main() -> Result<()> {

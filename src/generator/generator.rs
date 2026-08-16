@@ -12,6 +12,9 @@ use std::thread;
 use std::time::Duration;
 use image::codecs::jpeg::JpegEncoder;
 
+const SPEECH_DURATION_RANGE: std::ops::RangeInclusive<f32> = 1.0..=3.0;
+const SILENCE_DURATION_RANGE: std::ops::RangeInclusive<f32> = 0.5..=2.0;
+
 pub fn run(cfg: &AppConfig) -> Result<()> {
     Builder::new().filter_level(cfg.log_level()).init();
 
@@ -44,9 +47,9 @@ pub fn run(cfg: &AppConfig) -> Result<()> {
             if remaining_time <= 0.0 {
                 speech = rand::random();
                 remaining_time = if speech {
-                    rng.gen_range(1.0..=3.0)
+                    rng.gen_range(SPEECH_DURATION_RANGE)
                 } else {
-                    rng.gen_range(0.5..=2.0)
+                    rng.gen_range(SILENCE_DURATION_RANGE)
                 };
                 info!(
                     "[АУДИО] Переключение на {}",
@@ -64,7 +67,7 @@ pub fn run(cfg: &AppConfig) -> Result<()> {
     thread::spawn(move || {
         let client = SocketService::bind("127.0.0.1:0").unwrap();
         let mut rng = rand::thread_rng();
-        rng.gen_range(1.0..=3.0);
+        rng.gen_range(SPEECH_DURATION_RANGE);
         let mut send_buf = frame_send_buf;
 
         loop {
