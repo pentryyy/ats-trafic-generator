@@ -5,12 +5,12 @@ use crate::services::socket::SocketService;
 use crate::dto::request::frame::FrameData;
 use anyhow::Result;
 use env_logger::Builder;
+use image::codecs::jpeg::JpegEncoder;
 use image::{ImageBuffer, RgbImage};
 use log::{error, info};
 use rand::Rng;
 use std::thread;
 use std::time::Duration;
-use image::codecs::jpeg::JpegEncoder;
 
 const SPEECH_DURATION_RANGE: std::ops::RangeInclusive<f32> = 1.0..=3.0;
 const SILENCE_DURATION_RANGE: std::ops::RangeInclusive<f32> = 0.5..=2.0;
@@ -135,12 +135,11 @@ fn generate_frame(width: u32, height: u32, rng: &mut impl Rng) -> FrameData {
 
     let mut frame = Vec::new();
     let mut encoder = JpegEncoder::new_with_quality(&mut frame, 45);
-    encoder.encode(&img, width, height, image::ColorType::Rgb8).unwrap();
+    encoder
+        .encode(&img, width, height, image::ColorType::Rgb8)
+        .unwrap();
 
-    info!(
-        "Генерация кадра: {} x {}",
-        width, height
-    );
+    info!("Генерация кадра: {} x {}", width, height);
 
     FrameData { frame }
 }
