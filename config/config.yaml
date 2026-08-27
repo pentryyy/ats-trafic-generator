@@ -11,4 +11,5 @@ frame:
 server:
   send_buf: 65536 # В байтах
   host: 127.0.0.1
-  port: 8080
+  audio_port: 8080
+  frame_port: 8081

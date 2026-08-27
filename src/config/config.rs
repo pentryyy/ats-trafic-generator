@@ -28,7 +28,8 @@ pub struct FrameConfig {
 pub struct ServerConfig {
     pub send_buf: usize,
     pub host: String,
-    pub port: u16,
+    pub audio_port: u16,
+    pub frame_port: u16,
 }
 
 impl AppConfig {
@@ -45,8 +46,12 @@ impl AppConfig {
         Ok(cfg)
     }
 
-    pub fn addr(&self) -> String {
-        format!("{}:{}", self.server.host, self.server.port)
+    pub fn audio_addr(&self) -> String {
+        format!("{}:{}", self.server.host, self.server.audio_port)
+    }
+
+    pub fn frame_addr(&self) -> String {
+        format!("{}:{}", self.server.host, self.server.frame_port)
     }
 
     pub fn send_buf(&self) -> Vec<u8> {

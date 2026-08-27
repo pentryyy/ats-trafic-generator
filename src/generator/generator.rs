@@ -18,30 +18,33 @@ const SILENCE_DURATION_RANGE: std::ops::RangeInclusive<f32> = 0.5..=2.0;
 pub fn run(cfg: &AppConfig) -> Result<()> {
     Builder::new().filter_level(cfg.log_level()).init();
 
-    let addr = cfg.addr().parse()?;
+    let audio_addr = cfg.audio_addr();
+    let frame_addr = cfg.frame_addr();
+
     let fft_size = cfg.audio.fft_size;
     let sample_rate = cfg.audio.sample_rate;
+    let audio_send_buf = cfg.send_buf().clone();
+    let frame_send_buf = cfg.send_buf().clone();
+    let frame_width = cfg.frame.width;
+    let frame_height = cfg.frame.height;
 
-    let audio_send_buf = cfg.send_buf();
+    let audio_client = SocketService::bind("127.0.0.1:0")?;
+    let frame_client = SocketService::bind("127.0.0.1:0")?;
+
     thread::spawn(move || {
-        let client = SocketService::bind("127.0.0.1:0").unwrap();
         let packet_duration = fft_size as f32 / sample_rate as f32;
-
         let mut rng = rand::thread_rng();
         let mut speech: bool = rand::random();
         let mut remaining_time = if speech {
-            rng.gen_range(1.0..=3.0)
+            rng.gen_range(SPEECH_DURATION_RANGE)
         } else {
-            rng.gen_range(0.5..=2.0)
+            rng.gen_range(SILENCE_DURATION_RANGE)
         };
-
         let mut send_buf = audio_send_buf;
 
         loop {
             let audio = create_audio(fft_size, sample_rate, speech);
-            if let Err(e) = client.send_to(&audio, addr, &mut send_buf) {
-                error!("[АУДИО] Ошибка отправки: {}", e);
-            }
+            send_audio(&audio_addr, audio, &audio_client, &mut send_buf);
 
             remaining_time -= packet_duration;
             if remaining_time <= 0.0 {
@@ -56,32 +59,22 @@ pub fn run(cfg: &AppConfig) -> Result<()> {
                     if speech { "речь" } else { "тишину" }
                 );
             }
-
             thread::sleep(Duration::from_millis(10));
         }
     });
 
-    let frame_send_buf = cfg.send_buf();
-    let frame_width = cfg.frame.width;
-    let frame_height = cfg.frame.height;
     thread::spawn(move || {
-        let client = SocketService::bind("127.0.0.1:0").unwrap();
         let mut rng = rand::thread_rng();
-        rng.gen_range(SPEECH_DURATION_RANGE);
         let mut send_buf = frame_send_buf;
 
         loop {
             let frame = generate_frame(frame_width, frame_height, &mut rng);
-            if let Err(e) = client.send_to(&frame, addr, &mut send_buf) {
-                error!("[КАДР] Ошибка отправки: {}", e);
-            }
+            send_frame(&frame_addr, frame, &frame_client, &mut send_buf);
             thread::sleep(Duration::from_millis(10));
         }
     });
 
-    loop {
-        thread::sleep(Duration::from_secs(1));
-    }
+    loop {}
 }
 
 fn create_audio(fft_size: usize, sample_rate: u32, speech: bool) -> AudioData {
@@ -142,4 +135,32 @@ fn generate_frame(width: u32, height: u32, rng: &mut impl Rng) -> FrameData {
     info!("Генерация кадра: {} x {}", width, height);
 
     FrameData { frame }
+}
+
+fn send_audio(addr_str: &str, audio: AudioData, client: &SocketService, send_buf: &mut Vec<u8>) {
+    let addr = match addr_str.parse() {
+        Ok(a) => a,
+        Err(e) => {
+            error!("Ошибка парсинга адреса '{}': {}", addr_str, e);
+            return;
+        }
+    };
+
+    if let Err(e) = client.send_to(&audio, addr, send_buf) {
+        error!("[АУДИО] Ошибка отправки: {}", e);
+    }
+}
+
+fn send_frame(addr_str: &str, frame: FrameData, client: &SocketService, send_buf: &mut Vec<u8>) {
+    let addr = match addr_str.parse() {
+        Ok(a) => a,
+        Err(e) => {
+            error!("Ошибка парсинга адреса '{}': {}", addr_str, e);
+            return;
+        }
+    };
+
+    if let Err(e) = client.send_to(&frame, addr, send_buf) {
+        error!("[КАДР] Ошибка отправки: {}", e);
+    }
 }
